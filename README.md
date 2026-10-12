@@ -1,0 +1,2 @@
+# GrowDetector
+Growtopia Blacklist System
