@@ -436,16 +436,22 @@ function helpContent(choice) {
             ].join("\n");
     return choice === "info" ? info : commandHelp;
 }
-function helpMenu(ownerId) {
-    return new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-            .setCustomId(`growhelp:${ownerId}`)
-            .setPlaceholder("Choose a help topic")
-            .addOptions(
-                { label: "Commands", value: "commands", description: "View available bot commands" },
-                { label: "How does it work", value: "info", description: "Learn how GrowDetector works" }
-            )
-    );
+function helpMenu() {
+    const menu = new StringSelectMenuBuilder()
+        .setCustomId("help_menu")
+        .setPlaceholder("Select a help category")
+        .addOptions(
+            { label: "Commands", description: "View available bot commands", value: "help_commands" },
+            { label: "How does it work?", description: "Learn how GrowDetector works", value: "help_info" }
+        );
+    return new ActionRowBuilder().addComponents(menu);
+}
+function helpEmbed(choice) {
+    return new EmbedBuilder()
+        .setColor("Blue")
+        .setTitle(choice === "help_commands" ? "GrowDetector — Commands" : choice === "help_info" ? "GrowDetector — How It Works" : "GrowDetector Help Center")
+        .setDescription(choice === "help_commands" ? helpContent("commands") : choice === "help_info" ? helpContent("info") : "Welcome to the GrowDetector Help Center.\n\nUse the dropdown below to browse commands and learn how the bot works.")
+        .setFooter({ text: "GrowDetector • Help Center" });
 }
 
 client.once(Events.ClientReady, () => {
@@ -457,25 +463,17 @@ client.on(Events.InteractionCreate, async (i) => {
     try {
         if (i.isButton() && (i.customId.startsWith("blapprove:") || i.customId.startsWith("bldeny:")))
             return await review(i);
-        if (i.isStringSelectMenu() && i.customId.startsWith("growhelp:")) {
-            const ownerId = i.customId.slice("growhelp:".length);
-            if (i.user.id !== ownerId)
-                return await i.reply({ content: "Use `!help` or `/help` to open your own help menu.", flags: MessageFlags.Ephemeral });
+        if (i.isStringSelectMenu() && i.customId === "help_menu") {
             const choice = i.values[0];
-            if (!["commands", "info"].includes(choice))
-                return await i.reply({ content: "Invalid help option.", flags: MessageFlags.Ephemeral });
-            return await i.update({ content: helpContent(choice), components: [helpMenu(ownerId)], allowedMentions: { parse: [] } });
+            if (!["help_commands", "help_info"].includes(choice))
+                return i.reply({ content: "Invalid help option.", flags: MessageFlags.Ephemeral });
+            return i.update({ embeds: [helpEmbed(choice)], components: [helpMenu()] });
         }
         if (!i.isChatInputCommand())
             return;
         const name = i.commandName;
         if (name === "help") {
-            return await i.reply({
-                content: "# GrowDetector — Help\nSelect a topic from the dropdown below.",
-                components: [helpMenu(i.user.id)],
-                flags: MessageFlags.Ephemeral,
-                allowedMentions: { parse: [] }
-            });
+            return i.reply({ embeds: [helpEmbed()], components: [helpMenu()] });
         }
         if (name !== "report" && !admin(i))
             return i.reply({ content: "Administrator permission required.", flags: MessageFlags.Ephemeral });
@@ -519,8 +517,8 @@ client.on(Events.MessageCreate, async (message) => {
     if (message.content.trim().toLowerCase() === "!help") {
         try {
             await message.reply({
-                content: "# GrowDetector — Help\nChoose a topic from the dropdown below.",
-                components: [helpMenu(message.author.id)],
+                embeds: [helpEmbed()],
+                components: [helpMenu()],
                 allowedMentions: { repliedUser: false, parse: [] }
             });
         } catch (error) {
