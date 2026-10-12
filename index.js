@@ -408,6 +408,8 @@ client.on(Events.InteractionCreate, async (i) => {
         if (!["report", "help"].includes(name) && !admin(i))
             return i.reply({ content: "Administrator permission required.", flags: MessageFlags.Ephemeral });
         if (name === "help") {
+            console.log(`[HELP] Received from ${i.user.id} in guild ${i.guildId}`);
+            await i.deferReply({ flags: MessageFlags.Ephemeral });
             const choice = i.options.getString("choice", true);
             const info = [
                 "# GrowDetector — Information",
@@ -450,9 +452,10 @@ client.on(Events.InteractionCreate, async (i) => {
                 "### Screenshot Scanning",
                 "Upload a Growtopia **/who screenshot** in the configured scan channel. **Only administrators can trigger scans** with the current settings."
             ].join("\n");
-            return i.reply({
-                content: choice === "info" ? info : commandHelp,
-                flags: MessageFlags.Ephemeral,
+            const content = choice === "info" ? info : commandHelp;
+            console.log(`[HELP] Sending ${choice}, ${content.length} characters`);
+            return await i.editReply({
+                content,
                 allowedMentions: { parse: [] }
             });
         }
