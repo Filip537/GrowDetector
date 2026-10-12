@@ -3,7 +3,7 @@ require("dotenv").config();
 const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
-const { Client, GatewayIntentBits, Events, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require("discord.js");
+const { Client, GatewayIntentBits, Events, EmbedBuilder, PermissionFlagsBits, ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags, StringSelectMenuBuilder } = require("discord.js");
 const { createWorker } = require("tesseract.js");
 const sharp = require("sharp");
 const TOKEN = process.env.DISCORD_TOKEN;
@@ -393,26 +393,9 @@ async function review(i) {
     await i.message.edit({ embeds: [requestEmbed(r).setTitle(`${r.type.toUpperCase()} — ${r.status.toUpperCase()}`).setColor(approve ? "Green" : "Grey")], components: [] }).catch(() => { });
     await i.editReply(`${title}: **${safe(r.growid)}**.${approve && !dest ? " Warning: destination channel not configured." : approve && !posted ? " Warning: couldn't publish to the destination channel." : ""}`);
 }
-client.once(Events.ClientReady, () => {
-    console.log(`Logged in as ${client.user.tag}`);
-});
-client.on(Events.InteractionCreate, async (i) => {
-    if (!i.guildId)
-        return;
-    try {
-        if (i.isButton() && (i.customId.startsWith("blapprove:") || i.customId.startsWith("bldeny:")))
-            return await review(i);
-        if (!i.isChatInputCommand())
-            return;
-        const name = i.commandName;
-        if (!["report", "help"].includes(name) && !admin(i))
-            return i.reply({ content: "Administrator permission required.", flags: MessageFlags.Ephemeral });
-        if (name === "help") {
-            console.log(`[HELP] Received from ${i.user.id} in guild ${i.guildId}`);
-            await i.deferReply({ flags: MessageFlags.Ephemeral });
-            const choice = i.options.getString("choice", true);
-            const info = [
-                "# GrowDetector — Information",
+function helpContent(choice) {
+    const info = [
+                "# GrowDetector — How does it work?",
                 "## How the Bot Works",
                 "GrowDetector helps server administrators manage Growtopia player blacklists and review reports.",
                 "",
@@ -430,11 +413,10 @@ client.on(Events.InteractionCreate, async (i) => {
                 "Members can use `/report` to submit a player report. Administrators review requests using **Approve** or **Deny** buttons.",
                 "Each server maintains its **own blacklist**."
             ].join("\n");
-            const commandHelp = [
+    const commandHelp = [
                 "# GrowDetector — Commands",
                 "## Public Commands",
-                "**/help choice:info** — Learn how the bot works.",
-                "**/help choice:commands** — View the command list.",
+                "**!help** — Open the help dropdown.",
                 "**/report** — Report a Growtopia player for administrator review.",
                 "",
                 "## Administrator Commands",
@@ -452,13 +434,43 @@ client.on(Events.InteractionCreate, async (i) => {
                 "### Screenshot Scanning",
                 "Upload a Growtopia **/who screenshot** in the configured scan channel. **Only administrators can trigger scans** with the current settings."
             ].join("\n");
-            const content = choice === "info" ? info : commandHelp;
-            console.log(`[HELP] Sending ${choice}, ${content.length} characters`);
-            return await i.editReply({
-                content,
-                allowedMentions: { parse: [] }
-            });
+    return choice === "info" ? info : commandHelp;
+}
+function helpMenu(ownerId) {
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`growhelp:${ownerId}`)
+            .setPlaceholder("Choose a help topic")
+            .addOptions(
+                { label: "Commands", value: "commands", description: "View available bot commands" },
+                { label: "How does it work", value: "info", description: "Learn how GrowDetector works" }
+            )
+    );
+}
+
+client.once(Events.ClientReady, () => {
+    console.log(`Logged in as ${client.user.tag}`);
+});
+client.on(Events.InteractionCreate, async (i) => {
+    if (!i.guildId)
+        return;
+    try {
+        if (i.isButton() && (i.customId.startsWith("blapprove:") || i.customId.startsWith("bldeny:")))
+            return await review(i);
+        if (i.isStringSelectMenu() && i.customId.startsWith("growhelp:")) {
+            const ownerId = i.customId.slice("growhelp:".length);
+            if (i.user.id !== ownerId)
+                return await i.reply({ content: "Use `!help` to open your own help menu.", flags: MessageFlags.Ephemeral });
+            const choice = i.values[0];
+            if (!["commands", "info"].includes(choice))
+                return await i.reply({ content: "Invalid help option.", flags: MessageFlags.Ephemeral });
+            return await i.update({ content: helpContent(choice), components: [helpMenu(ownerId)], allowedMentions: { parse: [] } });
         }
+        if (!i.isChatInputCommand())
+            return;
+        const name = i.commandName;
+        if (name !== "report" && !admin(i))
+            return i.reply({ content: "Administrator permission required.", flags: MessageFlags.Ephemeral });
         const d = getGuildData(i.guildId);
         if (setupNames[name]) {
             const channel = i.options.getChannel("channel", true);
@@ -496,6 +508,18 @@ ${d.blacklist.slice(0, 75).map(x => "• " + safe(x.growid)).join("\n").slice(0,
 client.on(Events.MessageCreate, async (message) => {
     if (message.author.bot || !message.guildId)
         return;
+    if (message.content.trim().toLowerCase() === "!help") {
+        try {
+            await message.reply({
+                content: "# GrowDetector — Help\nChoose a topic from the dropdown below.",
+                components: [helpMenu(message.author.id)],
+                allowedMentions: { repliedUser: false, parse: [] }
+            });
+        } catch (error) {
+            console.error("[HELP] Failed to send menu:", error);
+        }
+        return;
+    }
     const d = getGuildData(message.guildId);
     if (!d.settings.scan || message.channelId !== d.settings.scan)
         return;

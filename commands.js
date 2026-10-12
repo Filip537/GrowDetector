@@ -3,14 +3,6 @@ const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require("disco
 const c = (name, description) => new SlashCommandBuilder().setName(name).setDescription(description);
 const setup = (name, description) => c(name, description).addChannelOption(o => o.setName("channel").setDescription("Text channel").addChannelTypes(ChannelType.GuildText).setRequired(true)).setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
 const commands = [
-    c("help", "Learn how GrowDetector works and view its commands")
-        .addStringOption(o => o.setName("choice")
-            .setDescription("Choose what to view")
-            .setRequired(true)
-            .addChoices(
-                { name: "Info", value: "info" },
-                { name: "Commands", value: "commands" }
-            )),
     setup("setupblacklist", "Choose channel for approved blacklists"),
     setup("setupunblist", "Choose channel for approved removals"),
     setup("setproof", "Choose channel for proof and reports"),
