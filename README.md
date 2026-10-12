@@ -1,6 +1,6 @@
 # Multi-server Growtopia Blacklist Bot
 
-Independent bot with **one separate JSON database per Discord server**. No NoobV2 token, files, or database access.
+Independent bot with **one separate JSON database per Discord server**.
 
 ## Install
 1. Create a **new** bot in the Discord Developer Portal; enable Message Content Intent.
