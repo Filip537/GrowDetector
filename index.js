@@ -405,8 +405,57 @@ client.on(Events.InteractionCreate, async (i) => {
         if (!i.isChatInputCommand())
             return;
         const name = i.commandName;
-        if (name !== "report" && !admin(i))
+        if (!["report", "help"].includes(name) && !admin(i))
             return i.reply({ content: "Administrator permission required.", flags: MessageFlags.Ephemeral });
+        if (name === "help") {
+            const choice = i.options.getString("choice", true);
+            const info = [
+                "# GrowDetector — Information",
+                "## How the Bot Works",
+                "GrowDetector helps server administrators manage Growtopia player blacklists and review reports.",
+                "",
+                "### Screenshot Scanner",
+                "**1.** An administrator sets a screenshot channel using `/setscanchannel`.",
+                "**2.** An administrator uploads a screenshot of the Growtopia `/who` player list in that channel.",
+                "**3.** The bot queues the image, reads player names using AI-powered text recognition (OCR), and checks them against this server's blacklist.",
+                "**4.** The bot replies with detected names and any potential blacklist matches.",
+                "",
+                "### Important Notice",
+                "**The bot uses AI-powered text recognition to read names from screenshots. It can make mistakes, miss names, or incorrectly match players.**",
+                "**Always manually verify the screenshot and evidence before taking action.**",
+                "",
+                "### Reports and Blacklists",
+                "Members can use `/report` to submit a player report. Administrators review requests using **Approve** or **Deny** buttons.",
+                "Each server maintains its **own blacklist**."
+            ].join("\n");
+            const commandHelp = [
+                "# GrowDetector — Commands",
+                "## Public Commands",
+                "**/help choice:info** — Learn how the bot works.",
+                "**/help choice:commands** — View the command list.",
+                "**/report** — Report a Growtopia player for administrator review.",
+                "",
+                "## Administrator Commands",
+                "**/setupblacklist** — Set the channel for approved blacklist entries.",
+                "**/setupunblist** — Set the channel for approved removals.",
+                "**/setproof** — Set the proof and pending requests channel.",
+                "**/setscanchannel** — Set the `/who` screenshot scanning channel.",
+                "**/addblist** — Submit a player blacklist request.",
+                "**/unblist** — Request removal of a blacklisted player.",
+                "**/checkblist** — Check a specific GrowID.",
+                "**/blist** — View the server blacklist.",
+                "**/scanstatus** — Check scanner queue status.",
+                "**/blacklistsettings** — View configured channels.",
+                "",
+                "### Screenshot Scanning",
+                "Upload a Growtopia **/who screenshot** in the configured scan channel. **Only administrators can trigger scans** with the current settings."
+            ].join("\n");
+            return i.reply({
+                content: choice === "info" ? info : commandHelp,
+                flags: MessageFlags.Ephemeral,
+                allowedMentions: { parse: [] }
+            });
+        }
         const d = getGuildData(i.guildId);
         if (setupNames[name]) {
             const channel = i.options.getChannel("channel", true);
