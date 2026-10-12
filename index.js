@@ -416,7 +416,7 @@ function helpContent(choice) {
     const commandHelp = [
                 "# GrowDetector — Commands",
                 "## Public Commands",
-                "**!help** — Open the help dropdown.",
+                "**!help** or **/help** — Open the help dropdown.",
                 "**/report** — Report a Growtopia player for administrator review.",
                 "",
                 "## Administrator Commands",
@@ -460,7 +460,7 @@ client.on(Events.InteractionCreate, async (i) => {
         if (i.isStringSelectMenu() && i.customId.startsWith("growhelp:")) {
             const ownerId = i.customId.slice("growhelp:".length);
             if (i.user.id !== ownerId)
-                return await i.reply({ content: "Use `!help` to open your own help menu.", flags: MessageFlags.Ephemeral });
+                return await i.reply({ content: "Use `!help` or `/help` to open your own help menu.", flags: MessageFlags.Ephemeral });
             const choice = i.values[0];
             if (!["commands", "info"].includes(choice))
                 return await i.reply({ content: "Invalid help option.", flags: MessageFlags.Ephemeral });
@@ -469,6 +469,14 @@ client.on(Events.InteractionCreate, async (i) => {
         if (!i.isChatInputCommand())
             return;
         const name = i.commandName;
+        if (name === "help") {
+            return await i.reply({
+                content: "# GrowDetector — Help\nSelect a topic from the dropdown below.",
+                components: [helpMenu(i.user.id)],
+                flags: MessageFlags.Ephemeral,
+                allowedMentions: { parse: [] }
+            });
+        }
         if (name !== "report" && !admin(i))
             return i.reply({ content: "Administrator permission required.", flags: MessageFlags.Ephemeral });
         const d = getGuildData(i.guildId);
