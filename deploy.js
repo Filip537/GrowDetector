@@ -14,14 +14,17 @@ const commands = [
     c("addblist", "Submit a blacklist request for approval").setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addStringOption(o => o.setName("growid").setDescription("Growtopia player ID").setRequired(true))
         .addStringOption(o => o.setName("reason").setDescription("Why this player should be blacklisted").setRequired(true))
-        .addStringOption(o => o.setName("proof").setDescription("Proof URL or evidence reference").setRequired(true)),
+        .addStringOption(o => o.setName("proof").setDescription("Optional proof URL or evidence reference").setRequired(false))
+        .addAttachmentOption(o => o.setName("image").setDescription("Upload proof screenshot (optional)").setRequired(false)),
     c("unblist", "Submit a blacklist removal for approval").setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addStringOption(o => o.setName("growid").setDescription("Growtopia player ID").setRequired(true))
-        .addStringOption(o => o.setName("reason").setDescription("Reason for removal").setRequired(true)),
+        .addStringOption(o => o.setName("reason").setDescription("Reason for removal").setRequired(true))
+        .addAttachmentOption(o => o.setName("image").setDescription("Upload removal evidence (optional)").setRequired(false)),
     c("report", "Public: report a Growtopia player to server administrators")
         .addStringOption(o => o.setName("growid").setDescription("Growtopia player ID").setRequired(true))
         .addStringOption(o => o.setName("reason").setDescription("What happened").setRequired(true))
-        .addStringOption(o => o.setName("proof").setDescription("Proof URL or evidence reference").setRequired(true)),
+        .addStringOption(o => o.setName("proof").setDescription("Optional proof URL or evidence reference").setRequired(false))
+        .addAttachmentOption(o => o.setName("image").setDescription("Upload proof screenshot (optional)").setRequired(false)),
     c("checkblist", "Check whether a GrowID is on this server's blacklist").setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addStringOption(o => o.setName("growid").setDescription("Growtopia player ID").setRequired(true)),
     c("blist", "Show this server's blacklisted GrowIDs").setDefaultMemberPermissions(PermissionFlagsBits.Administrator),

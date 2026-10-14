@@ -332,9 +332,17 @@ async function sendChannel(guild, id, payload) { if (!id)
     return null; const channel = await guild.channels.fetch(id).catch(() => null); if (!channel?.isTextBased())
     return null; return channel.send(payload).catch(e => { console.error("Channel send failed", id, e.message); return null; }); }
 function buttons(id) { return [new ActionRowBuilder().addComponents(new ButtonBuilder().setCustomId(`blapprove:${id}`).setLabel("Approve").setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(`bldeny:${id}`).setLabel("Deny").setStyle(ButtonStyle.Danger))]; }
-function requestEmbed(r) { return new EmbedBuilder().setColor(r.type === "unblist" ? "Orange" : r.type === "report" ? "Blue" : "Yellow").setTitle(`${r.type.toUpperCase()} — Pending approval`).addFields({ name: "GrowID", value: safe(r.growid), inline: true }, { name: "Submitted by", value: `<@${r.by}>`, inline: true }, { name: "Reason", value: safe(r.reason) }, { name: "Proof", value: safe(r.proof || "Not provided") }).setFooter({ text: `Request ID: ${r.id}` }).setTimestamp(); }
+function requestEmbed(r) { const embed = new EmbedBuilder().setColor(r.type === "unblist" ? "Orange" : r.type === "report" ? "Blue" : "Yellow").setTitle(`${r.type.toUpperCase()} — Pending approval`).addFields({ name: "GrowID", value: safe(r.growid), inline: true }, { name: "Submitted by", value: `<@${r.by}>`, inline: true }, { name: "Reason", value: safe(r.reason) }, { name: "Proof", value: safe(r.proof || "Not provided") }).setFooter({ text: `Request ID: ${r.id}` }).setTimestamp(); if (r.imageUrl) embed.setImage(r.imageUrl); return embed; }
 async function handleRequest(i, d, type) {
-    const growid = i.options.getString("growid", true).trim(), reason = i.options.getString("reason", true).trim(), proof = type === "unblist" ? "" : i.options.getString("proof", true).trim();
+    const growid = i.options.getString("growid", true).trim();
+    const reason = i.options.getString("reason", true).trim();
+    const image = i.options.getAttachment("image");
+    const textProof = type === "unblist" ? "" : (i.options.getString("proof") || "").trim();
+    if (image && (!imageAttachment(image) || image.size > MAX_BYTES))
+        return i.reply({ content: "Upload a PNG, JPG or WebP image up to 8 MB.", flags: MessageFlags.Ephemeral });
+    if (type !== "unblist" && !textProof && !image)
+        return i.reply({ content: "Provide a proof URL/text or upload an image.", flags: MessageFlags.Ephemeral });
+    const proof = textProof || (image ? image.url : "");
     if (!/^[A-Za-z0-9_]{2,24}$/.test(growid))
         return i.reply({ content: "GrowID must contain 2–24 letters, digits, or underscores.", flags: MessageFlags.Ephemeral });
     if (reason.length > 600 || proof.length > 700)
@@ -349,7 +357,7 @@ async function handleRequest(i, d, type) {
         return i.reply({ content: "That GrowID is not blacklisted on this server.", flags: MessageFlags.Ephemeral });
     if (type !== "unblist" && d.blacklist.some(x => normalizeGrowID(x.growid) === normalizeGrowID(growid)))
         return i.reply({ content: "That GrowID is already blacklisted on this server.", flags: MessageFlags.Ephemeral });
-    const id = crypto.randomUUID().slice(0, 12), r = { id, type, growid, reason, proof, by: i.user.id, createdAt: new Date().toISOString(), status: "pending" };
+    const id = crypto.randomUUID().slice(0, 12), r = { id, type, growid, reason, proof, imageUrl: image?.url || null, by: i.user.id, createdAt: new Date().toISOString(), status: "pending" };
     d.requests[id] = r;
     saveGuildData(i.guildId, d);
     const posted = await sendChannel(i.guild, d.settings.proof, { embeds: [requestEmbed(r)], components: buttons(id), allowedMentions: { parse: [] } });
@@ -379,7 +387,7 @@ async function review(i) {
         if (r.type === "unblist")
             d.blacklist.splice(idx, 1);
         else
-            d.blacklist.push({ growid: r.growid, reason: r.reason, proof: r.proof, reportedBy: r.by, approvedBy: i.user.id, addedAt: new Date().toISOString() });
+            d.blacklist.push({ growid: r.growid, reason: r.reason, proof: r.proof, imageUrl: r.imageUrl || null, reportedBy: r.by, approvedBy: i.user.id, addedAt: new Date().toISOString() });
     }
     r.status = approve ? "approved" : "denied";
     r.reviewedBy = i.user.id;
@@ -388,6 +396,7 @@ async function review(i) {
     const title = approve ? (r.type === "unblist" ? "Blacklist removed" : "Player blacklisted") : "Blacklist request denied";
     const log = new EmbedBuilder().setColor(approve ? (r.type === "unblist" ? "Orange" : "Red") : "Grey").setTitle(title)
         .addFields({ name: "GrowID", value: safe(r.growid), inline: true }, { name: "Reviewed by", value: `<@${i.user.id}>`, inline: true }, { name: "Reason", value: safe(r.reason) }, { name: "Proof", value: safe(r.proof || "Not provided") }).setTimestamp();
+    if (r.imageUrl) log.setImage(r.imageUrl);
     const dest = approve ? (r.type === "unblist" ? d.settings.unblist : d.settings.blacklist) : null;
     const posted = dest ? await sendChannel(i.guild, dest, { embeds: [log], allowedMentions: { parse: [] } }) : null;
     await i.message.edit({ embeds: [requestEmbed(r).setTitle(`${r.type.toUpperCase()} — ${r.status.toUpperCase()}`).setColor(approve ? "Green" : "Grey")], components: [] }).catch(() => { });
